@@ -2,109 +2,150 @@ package com.example.exchangeratechallenge.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.cache.CacheManager;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 public class ExchangeRateServiceImplTest {
+    @Mock
     private RestTemplate restTemplate;
-    private ExchangeRateServiceImpl service;
+
+    private ExchangeRateServiceImpl exchangeRateService;
 
     private CacheManager cacheManager;
 
     @BeforeEach
-    public void setUp() {
-        restTemplate = mock(RestTemplate.class);
-        service = new ExchangeRateServiceImpl(restTemplate, cacheManager);
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        exchangeRateService = new ExchangeRateServiceImpl(restTemplate,cacheManager);
     }
 
     @Test
-    public void testGetExchangeRate() {
-        // Arrange
-        String from = "USD";
-        String to = "EUR";
-        BigDecimal expectedRate = BigDecimal.valueOf(0.85);
-        Map<String, Object> apiResponse = new HashMap<>();
-        apiResponse.put("quotes", Map.of(to, expectedRate));
-        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(apiResponse);
+    void testGetExchangeRate() {
+        // Setup
+        String fromCurrency = "USD";
+        String toCurrency = "EUR";
 
-        // Act
-        BigDecimal rate = service.getExchangeRate(from, to);
+        // Mocking the API response
+        Map<String, Object> mockedApiResponse = new LinkedHashMap<>();
+        mockedApiResponse.put("success", true);
+        Map<String, Object> mockedQuotes = new LinkedHashMap<>();
+        mockedQuotes.put("USDEUR", 0.85);
+        mockedApiResponse.put("quotes", mockedQuotes);
 
-        // Assert
-        assertNotNull(rate);
-        assertEquals(expectedRate, rate);
-        verify(restTemplate).getForObject(anyString(), eq(Map.class));
+        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(mockedApiResponse);
+
+        // Execution
+        BigDecimal exchangeRate = exchangeRateService.getExchangeRate(fromCurrency, toCurrency);
+
+        // Assertions
+        assertNotNull(exchangeRate);
+        assertEquals(0, BigDecimal.valueOf(0.85).compareTo(exchangeRate));
     }
 
     @Test
-    public void testGetAllExchangeRates() {
-        // Arrange
-        String base = "USD";
-        Map<String, BigDecimal> expectedRates = Map.of("EUR", BigDecimal.valueOf(0.85), "JPY", BigDecimal.valueOf(110.25));
-        Map<String, Object> apiResponse = new HashMap<>();
-        apiResponse.put("rates", expectedRates);
-        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(apiResponse);
+    void testGetExchangeRateFailure() {
+        // Setup
+        String fromCurrency = "USD";
+        String toCurrency = "EUR";
 
-        // Act
-        Map<String, BigDecimal> rates = service.getAllExchangeRates(base);
+        // Mocking a failed API response
+        Map<String, Object> mockedApiResponse = new LinkedHashMap<>();
+        mockedApiResponse.put("success", false);
 
-        // Assert
-        assertNotNull(rates);
-        assertEquals(expectedRates, rates);
-        verify(restTemplate).getForObject(anyString(), eq(Map.class));
+        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(mockedApiResponse);
+
+        // Execution and Assertions
+        assertThrows(IllegalArgumentException.class, () -> {
+            exchangeRateService.getExchangeRate(fromCurrency, toCurrency);
+        });
     }
 
     @Test
-    public void testConvertCurrency() {
-        // Arrange
-        String from = "USD";
-        String to = "EUR";
+    void testGetAllExchangeRates() {
+        // Setup
+        String baseCurrency = "USD";
+
+        // Mocking the API response
+        Map<String, Object> mockedApiResponse = new HashMap<>();
+        Map<String, BigDecimal> mockedQuotes = new HashMap<>();
+        mockedQuotes.put("USDEUR", BigDecimal.valueOf(0.85));
+        mockedQuotes.put("USDGBP", BigDecimal.valueOf(0.75));
+        mockedApiResponse.put("quotes", mockedQuotes);
+
+        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(mockedApiResponse);
+
+        // Execution
+        Map<String, BigDecimal> exchangeRates = exchangeRateService.getAllExchangeRates(baseCurrency);
+
+        // Assertions
+        assertNotNull(exchangeRates);
+        assertFalse(exchangeRates.isEmpty());
+        assertEquals(mockedQuotes, exchangeRates);
+        assertTrue(exchangeRates.containsKey("USDEUR") && exchangeRates.get("USDEUR").compareTo(BigDecimal.valueOf(0.85)) == 0);
+        assertTrue(exchangeRates.containsKey("USDGBP") && exchangeRates.get("USDGBP").compareTo(BigDecimal.valueOf(0.75)) == 0);
+    }
+
+
+    @Test
+    void testConvertCurrency() {
+        // Setup
+        String fromCurrency = "USD";
+        String toCurrency = "EUR";
         BigDecimal amount = BigDecimal.valueOf(100);
-        BigDecimal expectedConvertedAmount = BigDecimal.valueOf(85);
-        Map<String, Object> apiResponse = new HashMap<>();
-        apiResponse.put("result", expectedConvertedAmount);
-        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(apiResponse);
 
-        // Act
-        BigDecimal convertedAmount = service.convertCurrency(from, to, amount);
+        // Mocking the API response
+        Map<String, Object> mockedApiResponse = new HashMap<>();
+        mockedApiResponse.put("result", 85.0); // Assuming the conversion result is 85
 
-        // Assert
-        assertNotNull(convertedAmount);
-        assertEquals(expectedConvertedAmount, convertedAmount);
-        verify(restTemplate).getForObject(anyString(), eq(Map.class));
+        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(mockedApiResponse);
+
+        // Execution
+        BigDecimal conversionResult = exchangeRateService.convertCurrency(fromCurrency, toCurrency, amount);
+
+        // Assertions
+        assertNotNull(conversionResult);
+        assertEquals(0, BigDecimal.valueOf(85).compareTo(conversionResult));
     }
 
     @Test
-    public void testConvertToMultipleCurrencies() {
-        // Arrange
-        String from = "USD";
-        List<String> toCurrencies = List.of("EUR", "JPY");
-
+    void testConvertToMultipleCurrencies() {
+        // Setup
+        String fromCurrency = "USD";
+        List<String> toCurrencies = Arrays.asList("EUR", "GBP");
         BigDecimal amount = BigDecimal.valueOf(100);
-        Map<String, BigDecimal> expectedResults = Map.of("EUR", BigDecimal.valueOf(85), "JPY", BigDecimal.valueOf(11025));
-        when(restTemplate.getForObject(anyString(), eq(Map.class)))
-                .thenReturn(createMockResponse("EUR", BigDecimal.valueOf(85)))
-                .thenReturn(createMockResponse("JPY", BigDecimal.valueOf(11025)));
 
-        // Act
-        Map<String, BigDecimal> results = service.convertToMultipleCurrencies(from, toCurrencies, amount);
+        // Mocking the API response
+        Map<String, Object> mockedApiResponse = new HashMap<>();
+        Map<String, BigDecimal> mockedQuotes = new HashMap<>();
+        mockedQuotes.put("USDEUR", BigDecimal.valueOf(0.85));
+        mockedQuotes.put("USDGBP", BigDecimal.valueOf(0.75));
+        mockedApiResponse.put("success", true);
+        mockedApiResponse.put("quotes", mockedQuotes);
 
-        // Assert
-        assertNotNull(results);
-        assertEquals(expectedResults, results);
-        verify(restTemplate, times(2)).getForObject(anyString(), eq(Map.class));
+        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(mockedApiResponse);
+
+        // Execution
+        HashMap<String, BigDecimal> conversionResults = (HashMap<String, BigDecimal>) exchangeRateService.convertToMultipleCurrencies(fromCurrency, toCurrencies, amount);
+
+        // Assertions
+        assertNotNull(conversionResults);
+        assertEquals(2, conversionResults.size());
+        assertTrue(conversionResults.containsKey("EUR"));
+        assertTrue(conversionResults.containsKey("GBP"));
+        assertEquals(0, BigDecimal.valueOf(85).compareTo(conversionResults.get("EUR")));
+        assertEquals(0, BigDecimal.valueOf(75).compareTo(conversionResults.get("GBP")));
     }
+
 
     private Map<String, Object> createMockResponse(String currency, BigDecimal rate) {
         Map<String, Object> response = new HashMap<>();

@@ -92,7 +92,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
             Map<String, BigDecimal> conversionResults = new HashMap<>();
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
         if (response != null && (Boolean) response.get("success")) {
-            LinkedHashMap<String, Object> quotes = (LinkedHashMap<String, Object>) response.get("quotes");
+            HashMap<String, Object> quotes = (HashMap<String, Object>) response.get("quotes");
             if (quotes != null) {
                 for (String currency : currencies) {
                     String pair = from + currency;
