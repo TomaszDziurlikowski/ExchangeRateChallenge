@@ -1,4 +1,4 @@
-package com.example.exchangeratechallenge.cache;
+package com.example.exchangeratechallenge.config;
 
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
@@ -10,6 +10,6 @@ public class CacheConfiguration {
 
     @Bean
     public CacheManager cacheManager(){
-        return new ConcurrentMapCacheManager("exhchangeRates");
+        return new ConcurrentMapCacheManager("exchangeRates","allExchangeRates","currencyConversions","multiCurrencyConversions");
     }
 }
