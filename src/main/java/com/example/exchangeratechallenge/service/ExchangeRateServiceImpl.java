@@ -47,7 +47,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
 
         Map<String, Object> response = restTemplate.getForObject(url, Map.class);
         if (response != null && (Boolean) response.get("success")) {
-            LinkedHashMap<String, Object> quotes = (LinkedHashMap<String, Object>) response.get(QUOTES);
+            HashMap<String, Object> quotes = (HashMap<String, Object>) response.get(QUOTES);
             if (quotes != null && !quotes.isEmpty()) {
                 Map.Entry<String, Object> entry = quotes.entrySet().iterator().next();
                 return new BigDecimal(entry.getValue().toString());
