@@ -6,6 +6,8 @@ Open src/main/resources/application.properties and find the line:
 
 access_key=YOUR_ACCESS_KEY_HERE Replace YOUR_ACCESS_KEY_HERE with your actual access key.
 
+ACCESS_KEY should be provided from  -> https://exchangerate.host
+
 Build the Project
 For Maven:
 
