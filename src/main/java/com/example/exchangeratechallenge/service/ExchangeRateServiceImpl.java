@@ -1,5 +1,8 @@
 package com.example.exchangeratechallenge.service;
 
+import com.example.exchangeratechallenge.error.CurrencyConversionException;
+import com.example.exchangeratechallenge.error.CurrencyRatesFetchException;
+import com.example.exchangeratechallenge.error.ExchangeRateServiceException;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -14,8 +17,6 @@ import java.util.Map;
 @Service
 public class ExchangeRateServiceImpl implements ExchangeRateService {
 
-
-    //TODO ADJUST API PATH AND PARAMS,ADD ACCESS KEY,TESTS,CACHINGDATA
     RestTemplate restTemplate;
 
     CacheManager cacheManager;
@@ -23,7 +24,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
     private String API_URI = "http://api.exchangerate.host";
     private String ACCESS_KEY = "ea91a0e9b648ea55dcfa011b08c93a47";
 
-    public ExchangeRateServiceImpl(RestTemplate restTemplate, CacheManager cacheManager){
+    public ExchangeRateServiceImpl(RestTemplate restTemplate, CacheManager cacheManager) {
         this.restTemplate = restTemplate;
         this.cacheManager = cacheManager;
     }
@@ -39,14 +40,14 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                 .toUriString();
 
         Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-        if(response != null && (Boolean)response.get("success")){
+        if (response != null && (Boolean) response.get("success")) {
             LinkedHashMap<String, Object> quotes = (LinkedHashMap<String, Object>) response.get("quotes");
             if (quotes != null && !quotes.isEmpty()) {
                 Map.Entry<String, Object> entry = quotes.entrySet().iterator().next();
                 return new BigDecimal(entry.getValue().toString());
             }
         }
-        throw new IllegalArgumentException("Unable to fetch exchange rate");
+        throw new CurrencyConversionException("Failed to fetch exchange rate from " + from + " to " + to);
     }
 
     @Override
@@ -58,8 +59,12 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                 .queryParam("source", base)
                 .toUriString();
 
-        Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-        return (Map<String, BigDecimal>) response.get("quotes");
+        try {
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            return (Map<String, BigDecimal>) response.get("quotes");
+        } catch (ExchangeRateServiceException e) {
+            throw new CurrencyRatesFetchException("Failed to fetch all exchange rates for base currency " + base);
+        }
     }
 
     @Override
@@ -74,36 +79,44 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                 .toUriString();
 
         Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-        BigDecimal result = BigDecimal.valueOf((Double) response.get("result"));
-        return result;
+        try {
+            BigDecimal result = BigDecimal.valueOf((Double) response.get("result"));
+            return result;
+        } catch (Exception e) {
+            throw new CurrencyConversionException("Currency conversion error from " + from + " to " + to + " for amount " + amount);
+        }
     }
 
 
     @Override
     @Cacheable(value = "multiCurrencyConversions", key = "#from + '-' +  #currencies  + '-' + #amount")
     public Map<String, BigDecimal> convertToMultipleCurrencies(String from, List<String> currencies, BigDecimal amount) {
-            String url = UriComponentsBuilder.fromHttpUrl(API_URI)
-                    .path("/live")
-                    .queryParam("access_key", ACCESS_KEY)
-                    .queryParam("source", from)
-                    .queryParam("currencies", String.join(",",currencies))
-                    .toUriString();
+        String url = UriComponentsBuilder.fromHttpUrl(API_URI)
+                .path("/live")
+                .queryParam("access_key", ACCESS_KEY)
+                .queryParam("source", from)
+                .queryParam("currencies", String.join(",", currencies))
+                .toUriString();
 
-            Map<String, BigDecimal> conversionResults = new HashMap<>();
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-        if (response != null && (Boolean) response.get("success")) {
-            HashMap<String, Object> quotes = (HashMap<String, Object>) response.get("quotes");
-            if (quotes != null) {
-                for (String currency : currencies) {
-                    String pair = from + currency;
-                    if (quotes.containsKey(pair)) {
-                        BigDecimal rate = new BigDecimal(quotes.get(pair).toString());
-                        BigDecimal convertedValue = rate.multiply(amount);
-                        conversionResults.put(currency, convertedValue);
+        Map<String, BigDecimal> conversionResults = new HashMap<>();
+        Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+        try {
+            if (response != null && (Boolean) response.get("success")) {
+                HashMap<String, Object> quotes = (HashMap<String, Object>) response.get("quotes");
+                if (quotes != null) {
+                    for (String currency : currencies) {
+                        String pair = from + currency;
+                        if (quotes.containsKey(pair)) {
+                            BigDecimal rate = new BigDecimal(quotes.get(pair).toString());
+                            BigDecimal convertedValue = rate.multiply(amount);
+                            conversionResults.put(currency, convertedValue);
+                        }
                     }
                 }
             }
+                return conversionResults;
+        } catch (Exception e) {
+            throw new CurrencyConversionException("Currency conversion error from " + from + " to " + currencies + " for amount " + amount);
         }
-        return conversionResults;
     }
 }
