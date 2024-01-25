@@ -1,10 +1,12 @@
 package com.example.exchangeratechallenge.service;
 
+import com.example.exchangeratechallenge.error.CurrencyConversionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.cache.CacheManager;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -27,6 +29,8 @@ public class ExchangeRateServiceImplTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         exchangeRateService = new ExchangeRateServiceImpl(restTemplate,cacheManager);
+        ReflectionTestUtils.setField(exchangeRateService, "API_URI", "http://example.com");
+        ReflectionTestUtils.setField(exchangeRateService, "ACCESS_KEY", "your_access_key");
     }
 
     @Test
@@ -65,7 +69,7 @@ public class ExchangeRateServiceImplTest {
         when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(mockedApiResponse);
 
         // Execution and Assertions
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(CurrencyConversionException.class, () -> {
             exchangeRateService.getExchangeRate(fromCurrency, toCurrency);
         });
     }

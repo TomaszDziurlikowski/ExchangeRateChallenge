@@ -3,6 +3,8 @@ package com.example.exchangeratechallenge.service;
 import com.example.exchangeratechallenge.error.CurrencyConversionException;
 import com.example.exchangeratechallenge.error.CurrencyRatesFetchException;
 import com.example.exchangeratechallenge.error.ExchangeRateServiceException;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -21,8 +23,10 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
 
     CacheManager cacheManager;
 
-    private String API_URI = "http://api.exchangerate.host";
-    private String ACCESS_KEY = "ea91a0e9b648ea55dcfa011b08c93a47";
+    @Value("${api_uri}")
+    private String API_URI;
+    @Value("${access_key}")
+    private String ACCESS_KEY;
 
     public ExchangeRateServiceImpl(RestTemplate restTemplate, CacheManager cacheManager) {
         this.restTemplate = restTemplate;
@@ -89,7 +93,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
 
 
     @Override
-    @Cacheable(value = "multiCurrencyConversions", key = "#from + '-' +  #currencies  + '-' + #amount")
+    @Cacheable(value = "multiCurrencyConversions", key = "#from + '-' +  #currencies")
     public Map<String, BigDecimal> convertToMultipleCurrencies(String from, List<String> currencies, BigDecimal amount) {
         String url = UriComponentsBuilder.fromHttpUrl(API_URI)
                 .path("/live")
