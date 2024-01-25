@@ -23,6 +23,8 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
 
     CacheManager cacheManager;
 
+    private static final String SOURCE = "source";
+    private static final String QUOTES = "quotes";
     @Value("${api_uri}")
     private String API_URI;
     @Value("${access_key}")
@@ -39,13 +41,13 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         String url = UriComponentsBuilder.fromHttpUrl(API_URI)
                 .path("/live")
                 .queryParam("access_key", ACCESS_KEY)
-                .queryParam("source", from)
+                .queryParam(SOURCE, from)
                 .queryParam("currencies", to)
                 .toUriString();
 
         Map<String, Object> response = restTemplate.getForObject(url, Map.class);
         if (response != null && (Boolean) response.get("success")) {
-            LinkedHashMap<String, Object> quotes = (LinkedHashMap<String, Object>) response.get("quotes");
+            LinkedHashMap<String, Object> quotes = (LinkedHashMap<String, Object>) response.get(QUOTES);
             if (quotes != null && !quotes.isEmpty()) {
                 Map.Entry<String, Object> entry = quotes.entrySet().iterator().next();
                 return new BigDecimal(entry.getValue().toString());
@@ -60,12 +62,12 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         String url = UriComponentsBuilder.fromHttpUrl(API_URI)
                 .path("/live")
                 .queryParam("access_key", ACCESS_KEY)
-                .queryParam("source", base)
+                .queryParam(SOURCE, base)
                 .toUriString();
 
         try {
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            return (Map<String, BigDecimal>) response.get("quotes");
+            return (Map<String, BigDecimal>) response.get(QUOTES);
         } catch (ExchangeRateServiceException e) {
             throw new CurrencyRatesFetchException("Failed to fetch all exchange rates for base currency " + base);
         }
@@ -82,8 +84,8 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
                 .queryParam("amount", amount)
                 .toUriString();
 
-        Map<String, Object> response = restTemplate.getForObject(url, Map.class);
         try {
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
             BigDecimal result = BigDecimal.valueOf((Double) response.get("result"));
             return result;
         } catch (Exception e) {
@@ -98,7 +100,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         String url = UriComponentsBuilder.fromHttpUrl(API_URI)
                 .path("/live")
                 .queryParam("access_key", ACCESS_KEY)
-                .queryParam("source", from)
+                .queryParam(SOURCE, from)
                 .queryParam("currencies", String.join(",", currencies))
                 .toUriString();
 
@@ -106,7 +108,7 @@ public class ExchangeRateServiceImpl implements ExchangeRateService {
         Map<String, Object> response = restTemplate.getForObject(url, Map.class);
         try {
             if (response != null && (Boolean) response.get("success")) {
-                HashMap<String, Object> quotes = (HashMap<String, Object>) response.get("quotes");
+                HashMap<String, Object> quotes = (HashMap<String, Object>) response.get(QUOTES);
                 if (quotes != null) {
                     for (String currency : currencies) {
                         String pair = from + currency;
