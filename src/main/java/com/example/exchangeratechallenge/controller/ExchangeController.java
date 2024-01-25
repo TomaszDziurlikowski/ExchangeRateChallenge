@@ -38,7 +38,7 @@ public class ExchangeController {
     }
 
     @GetMapping("/convertMultiple")
-    public ResponseEntity<Map<String, BigDecimal>> convertToMultipleCurrencies(@RequestParam String from, @RequestParam List<String> toCurrencies, @RequestParam BigDecimal amount) {
+    public ResponseEntity<Map<String, BigDecimal>> convertToMultipleCurrencies(@RequestParam String from,@RequestParam(value = "toCurrencies") List<String> toCurrencies, @RequestParam BigDecimal amount) {
         Map<String, BigDecimal> conversionResults = exchangeRateService.convertToMultipleCurrencies(from, toCurrencies, amount);
         return ResponseEntity.ok(conversionResults);
     }
